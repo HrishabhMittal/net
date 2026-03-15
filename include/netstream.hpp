@@ -6,6 +6,7 @@
 #include <endian.h>
 #include <netinet/in.h>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 #include <concepts>
@@ -31,10 +32,11 @@ namespace net {
     }
     inline url getURL(const std::string& str) {
         url out;
-        size_t end=str.find("://");
+        out.domain=str;
+        size_t end=out.domain.find("://");
         if (end!=std::string::npos) {
-            out.protocol=str.substr(0,end);
-            out.domain=str.substr(end+3);
+            out.protocol=out.domain.substr(0,end);
+            out.domain=out.domain.substr(end+3);
         }
         end=out.domain.find("/");
         if (end!=std::string::npos) {
@@ -45,6 +47,14 @@ namespace net {
         if (end!=std::string::npos) {
             out.port=std::stoi(out.domain.substr(end+1));
             out.domain=out.domain.substr(0,end);
+        } else {
+            if (out.protocol == "http") {
+                    out.port = 80;
+            } else if (out.protocol == "https") {
+                    out.port = 443;
+            } else if (out.protocol == "ftp") {
+                    out.port = 21;
+            }
         }
         return out;
     }
@@ -58,7 +68,12 @@ namespace net {
         int32_t sock_fd=-1;
         int timeout=-1;
         size_t last_bytes_read=0;
+        std::string buf;
     public:
+        void flush() {
+            send(buf.data(),buf.size());
+            buf="";
+        }
         bool binary=true;
         void setTimeout(int32_t t) {
                 struct timeval tv;
@@ -228,10 +243,12 @@ namespace net {
                 buffer = reinterpret_cast<const char*>(&data);
                 length = sizeof(T);
             } else {
+                // should never happen
                 static_assert(sizeof(T) == 0, "Unsupported type passed to net::iostream");
             }
             if (buffer && length > 0 && sock_fd != -1) {
-                send(buffer,length);
+                buf.append(buffer,length);
+                // send(buffer,length);
             }
             return *this;
         }
@@ -262,6 +279,7 @@ namespace net {
                 bytes_read = recv_all(buffer,sizeof(buffer),flags);
                 std::memcpy(&data, buffer, sizeof(T));
             } else {
+                // again, should never happen
                 static_assert(sizeof(T) == 0, "Unsupported type passed to net::iostream");
             }
             last_bytes_read=bytes_read;
@@ -286,6 +304,10 @@ namespace net {
             return stream;
         };
     }
+    inline constexpr auto send = [](auto& stream) -> auto& {
+        stream.flush();
+        return stream;
+    };
     inline constexpr auto binary = [](auto& stream) -> auto& {
         stream.binary=true;
         return stream;

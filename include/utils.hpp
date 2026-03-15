@@ -14,6 +14,8 @@
 
 #include <string>
 #include <vector>
+#include <set>
+#include <map>
 
 #include <netinet/in.h>
 #include <unistd.h>
@@ -21,6 +23,14 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <endian.h>
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+
+
+
 namespace net {
     inline std::string URLEncode(const std::string& input) {
         std::ostringstream escaped;
